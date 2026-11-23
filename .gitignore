@@ -7,3 +7,7 @@ privatearchives-config.php
 server/data
 .wrangler
 .dev.vars
+# File rahasia
+.env
+.env.local
+.dev.vars
