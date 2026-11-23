@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
+import ArrowIcon from "./ArrowIcon.jsx";
 import "./MovieCarousel.css";
 
 const AUTOPLAY_MS = 7000;
@@ -170,9 +171,7 @@ export default function MovieCarousel({
             aria-label="Film sebelumnya"
             disabled={count < 2}
           >
-            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-              <path d="M15 5l-7 7 7 7" />
-            </svg>
+            <ArrowIcon direction="left" />
           </button>
           <button
             type="button"
@@ -181,9 +180,7 @@ export default function MovieCarousel({
             aria-label="Film berikutnya"
             disabled={count < 2}
           >
-            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-              <path d="M9 5l7 7-7 7" />
-            </svg>
+            <ArrowIcon />
           </button>
         </div>
       </header>
@@ -242,10 +239,10 @@ export default function MovieCarousel({
 /* -------------------------------------------------------------------------- */
 
 const ACCENTS = [
-  ["#3a1d0b", "#0d0b0a"],
-  ["#2b0a0e", "#0a0709"],
-  ["#0d1b2a", "#05070c"],
-  ["#1c0a1f", "#08070b"],
+  ["#8b0000", "#0d0b0e"],
+  ["#540007", "#100d10"],
+  ["#321316", "#0d0b0e"],
+  ["#6b0b12", "#150e10"],
 ];
 
 function SlideCard({ movie, position, total, priority, ctaHref, ctaLabel }) {

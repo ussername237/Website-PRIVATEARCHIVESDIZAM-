@@ -1,0 +1,31 @@
+Options -Indexes
+RewriteEngine On
+
+RewriteRule ^api/auth/(session|login|register|logout)$ api/auth/$1.php [L,QSA]
+
+<IfModule mod_rewrite.c>
+  RewriteCond %{REQUEST_FILENAME} -f [OR]
+  RewriteCond %{REQUEST_FILENAME} -d
+  RewriteRule ^ - [L]
+  RewriteRule ^ index.html [L]
+</IfModule>
+
+<IfModule mod_headers.c>
+  Header always set X-Content-Type-Options "nosniff"
+  Header always set Referrer-Policy "strict-origin-when-cross-origin"
+  Header always set X-Frame-Options "DENY"
+  Header always set Permissions-Policy "camera=(), microphone=(), geolocation=()"
+  Header always set Content-Security-Policy "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https://image.tmdb.org https://m.media-amazon.com https://img.youtube.com; connect-src 'self' https://api.themoviedb.org https://www.omdbapi.com; frame-src 'none'"
+  <FilesMatch "^(index\.html|.*\.php)$">
+    Header always set Cache-Control "no-store"
+  </FilesMatch>
+  <FilesMatch "\.(?:js|css)$">
+    Header set Cache-Control "public, max-age=31536000, immutable"
+  </FilesMatch>
+  <FilesMatch "\.(?:ico|png|svg)$">
+    Header set Cache-Control "public, max-age=86400"
+  </FilesMatch>
+  <FilesMatch "\.webmanifest$">
+    Header set Cache-Control "public, max-age=3600"
+  </FilesMatch>
+</IfModule>

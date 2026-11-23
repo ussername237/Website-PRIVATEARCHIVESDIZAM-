@@ -1,8 +1,11 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import MovieCarousel from "../components/MovieCarousel.jsx";
 import AppNavigation from "../components/AppNavigation.jsx";
 import { getSession } from "../lib/auth.js";
+import { getMovieGenres } from "../lib/genres.js";
 import {
+  FALLBACK_MOVIES,
   fetchLatestMovies,
   fetchMovies,
   hasOmdb,
@@ -10,15 +13,18 @@ import {
   loadMovies,
   saveMovies,
   searchMovies,
+  searchTmdbPage,
 } from "../lib/movies.js";
+import "./Landing.css";
 
 export default function Explore() {
   const navigate = useNavigate();
-  const session = getSession();
+  const email = getSession()?.email || "";
   const [movies, setMovies] = useState([]);
-  const [collection, setCollection] = useState(() => loadMovies(session.email));
+  const [collection, setCollection] = useState(() => loadMovies(email));
   const [collectionLoaded, setCollectionLoaded] = useState(false);
   const [query, setQuery] = useState("");
+  const [genreFilter, setGenreFilter] = useState("");
   const [loading, setLoading] = useState(true);
   const [searching, setSearching] = useState(false);
   const [error, setError] = useState("");
@@ -26,31 +32,15 @@ export default function Explore() {
   const [source, setSource] = useState("demo");
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(false);
+  const availableGenres = [...new Set(movies.flatMap(getMovieGenres))]
+    .sort((genreA, genreB) => genreA.localeCompare(genreB, "id"));
+  const visibleMovies = genreFilter
+    ? movies.filter((movie) => getMovieGenres(movie).includes(genreFilter))
+    : movies;
 
   useEffect(() => {
     let active = true;
-    fetchLatestMovies()
-      .then((result) => {
-        if (!active) return;
-        setMovies(result.movies);
-        setSource(result.source);
-        setPage(result.page || 1);
-        setHasMore(result.hasMore);
-      })
-      .catch((loadError) => {
-        if (active) setError(loadError.message || "Gagal memuat film terbaru.");
-      })
-      .finally(() => {
-        if (active) setLoading(false);
-      });
-    return () => {
-      active = false;
-    };
-  }, []);
-
-  useEffect(() => {
-    let active = true;
-    fetchMovies(session.email)
+    fetchMovies(email)
       .then((items) => {
         if (active) {
           setCollection(items);
@@ -63,26 +53,83 @@ export default function Explore() {
     return () => {
       active = false;
     };
-  }, [session.email]);
+  }, []);
+
+  useEffect(() => {
+    const term = query.trim();
+    let active = true;
+
+    if (!term) {
+      setLoading(true);
+      setSearching(false);
+      setError("");
+      setSourceWarning("");
+      fetchLatestMovies()
+        .then((result) => {
+          if (active) {
+            setMovies(result.movies);
+            setSource(result.source);
+            setPage(result.page || 1);
+            setHasMore(result.hasMore);
+          }
+        })
+        .catch((loadError) => {
+          if (active) {
+            setMovies([]);
+            setError(loadError.message || "Gagal memuat film terbaru.");
+          }
+        })
+        .finally(() => {
+          if (active) setLoading(false);
+        });
+      return () => {
+        active = false;
+      };
+    }
+
+    setLoading(true);
+    setSearching(true);
+    setError("");
+    const timer = window.setTimeout(() => {
+      const request = hasTmdb
+        ? searchTmdbPage(term)
+        : searchMovies(term);
+      request
+        .then((result) => {
+          if (!active) return;
+          setMovies(result.movies);
+          setPage(1);
+          setHasMore(result.hasMore);
+          setSourceWarning(result.warning || "");
+          setSource(result.source || (hasTmdb && hasOmdb ? "combined" : hasOmdb ? "omdb" : "tmdb"));
+        })
+        .catch((searchError) => {
+          if (active) {
+            const normalizedTerm = term.toLowerCase();
+            const localMatches = FALLBACK_MOVIES.filter((movie) =>
+              movie.title.toLowerCase().includes(normalizedTerm)
+            );
+            setMovies(localMatches);
+            setSource("demo");
+            setError(localMatches.length ? "" : (searchError.message || "Pencarian film gagal."));
+          }
+        })
+        .finally(() => {
+          if (active) {
+            setSearching(false);
+            setLoading(false);
+          }
+        });
+    }, 180);
+
+    return () => {
+      active = false;
+      window.clearTimeout(timer);
+    };
+  }, [query]);
 
   async function submitSearch(event) {
     event.preventDefault();
-    if (!query.trim()) return;
-    setSearching(true);
-    setError("");
-    try {
-      const result = await searchMovies(query.trim());
-      setMovies(result.movies);
-      setPage(1);
-      setHasMore(result.hasMore);
-      setSourceWarning(result.warning);
-      setSource(hasTmdb && hasOmdb ? "combined" : hasOmdb ? "omdb" : "tmdb");
-    } catch (searchError) {
-      setError(searchError.message || "Pencarian film gagal.");
-    } finally {
-      setSearching(false);
-      setLoading(false);
-    }
   }
 
   async function loadMoreMovies() {
@@ -92,7 +139,9 @@ export default function Explore() {
     try {
       const nextPage = page + 1;
       const result = query.trim()
-        ? await searchMovies(query.trim(), nextPage)
+        ? hasTmdb
+          ? await searchTmdbPage(query.trim(), nextPage)
+          : await searchMovies(query.trim(), nextPage)
         : await fetchLatestMovies(nextPage);
       setMovies((current) => [...current, ...result.movies]);
       setPage(result.page || nextPage);
@@ -115,7 +164,7 @@ export default function Explore() {
     if (alreadyAdded) return;
     const next = [{ ...movie, uid: Date.now(), watched: false, favorite: false }, ...collection];
     try {
-      await saveMovies(session.email, next);
+      await saveMovies(email, next);
       setCollection(next);
       setError("");
     } catch (saveError) {
@@ -124,7 +173,7 @@ export default function Explore() {
   }
 
   return (
-    <div className="min-h-screen bg-[#090a0d] text-slate-100">
+    <div className="archive-secondary-page min-h-screen bg-[#0D0B0E] text-[#D8C9A7]">
       <AppNavigation />
       <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6 sm:py-10">
         <header className="mb-7">
@@ -132,10 +181,10 @@ export default function Explore() {
           <div className="mt-2 flex flex-wrap items-end justify-between gap-4">
             <div>
               <h1 className="text-3xl font-semibold tracking-tight text-white">
-                Cari film
+                Cari film & series
               </h1>
               <p className="mt-2 text-sm text-slate-400">
-                Film terbaru, pencarian, trailer, dan detail dari TMDB.
+                Cari film dan series dari TMDB serta OMDb.
               </p>
             </div>
             <span className="rounded-full border border-white/10 px-3 py-1.5 text-xs text-slate-400">
@@ -152,22 +201,26 @@ export default function Explore() {
 
         <form
           onSubmit={submitSearch}
-          className="mb-8 flex flex-col gap-2 rounded-2xl border border-white/[0.07] bg-[#111318] p-3 sm:flex-row"
+          className="mb-8 flex flex-wrap gap-2 rounded-2xl border border-white/[0.07] bg-[#111318] p-3"
         >
           <input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="Cari judul film..."
-            aria-label="Cari judul film"
-            className="min-w-0 flex-1 rounded-xl bg-black/20 px-4 py-3 text-sm text-white outline-none placeholder:text-slate-600 focus:ring-1 focus:ring-white/20"
+            placeholder="Cari judul atau tahun"
+            aria-label="Cari judul atau tahun"
+            className="min-w-0 flex-1 rounded-xl bg-black/20 px-4 py-3 text-base text-white outline-none placeholder:text-slate-600 focus:ring-1 focus:ring-white/20 sm:text-sm"
           />
-          <button
-            type="submit"
-            disabled={searching}
-            className="rounded-xl bg-slate-100 px-5 py-3 text-sm font-medium text-slate-950 transition hover:bg-white disabled:opacity-50"
+          <select
+            value={genreFilter}
+            onChange={(event) => setGenreFilter(event.target.value)}
+            aria-label="Filter berdasarkan genre"
+            className="min-h-11 rounded-xl border border-white/10 bg-[#17191f] px-3 text-sm text-slate-200 outline-none focus:ring-1 focus:ring-white/20"
           >
-            {searching ? "Mencari..." : "Cari"}
-          </button>
+            <option value="">Semua genre</option>
+            {availableGenres.map((genre) => (
+              <option key={genre} value={genre}>{genre}</option>
+            ))}
+          </select>
         </form>
 
         {!hasTmdb && (
@@ -194,19 +247,31 @@ export default function Explore() {
           </p>
         )}
 
+        {!query.trim() && movies.length > 0 && (
+          <section className="mb-10">
+            <div className="mv-page">
+              <MovieCarousel
+                movies={visibleMovies.slice(0, 8)}
+                ctaHref="/dashboard"
+                ctaLabel="Ke koleksi"
+              />
+            </div>
+          </section>
+        )}
+
         <div className="mb-3 flex items-center justify-between">
           <h2 className="text-sm font-medium text-slate-300">
             {query ? "Hasil pencarian" : "Sedang tayang"}
           </h2>
-          <span className="text-xs text-slate-600">{movies.length} film</span>
+          <span className="text-xs text-slate-600">{visibleMovies.length} film</span>
         </div>
         {loading ? (
           <p className="rounded-2xl border border-white/[0.07] p-8 text-center text-sm text-slate-500">
             Memuat daftar film...
           </p>
-        ) : movies.length ? (
+        ) : visibleMovies.length ? (
           <div className="divide-y divide-white/[0.07] overflow-hidden rounded-2xl border border-white/[0.07] bg-[#101216]">
-            {movies.map((movie) => {
+            {visibleMovies.map((movie) => {
               const added = collection.some(
                 (item) =>
                   item.tmdbId === movie.tmdbId || item.title === movie.title
@@ -245,7 +310,7 @@ export default function Explore() {
                     type="button"
                     disabled={added || !collectionLoaded}
                     onClick={() => addMovie(movie)}
-                    className="rounded-full bg-white px-3 py-2 text-xs font-medium text-slate-950 transition hover:bg-slate-200 disabled:bg-white/5 disabled:text-slate-500"
+                    className="min-h-11 rounded-full bg-white px-3 py-2 text-xs font-medium text-slate-950 transition hover:bg-slate-200 disabled:bg-white/5 disabled:text-slate-500"
                   >
                     {added
                       ? "Tersimpan"
@@ -259,7 +324,7 @@ export default function Explore() {
           </div>
         ) : (
           <p className="rounded-2xl border border-dashed border-white/10 p-8 text-center text-sm text-slate-500">
-            Tidak ada film ditemukan. Periksa ejaan atau coba judul lain.
+            Tidak ada film ditemukan untuk pencarian atau genre ini. Periksa pilihan Anda.
           </p>
         )}
         {!loading && hasMore && (

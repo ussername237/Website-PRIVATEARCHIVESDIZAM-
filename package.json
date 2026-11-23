@@ -5,8 +5,15 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview"
+    "build": "npm run build:cloudflare",
+    "build:cpanel": "vite build --config vite.cpanel.config.js",
+    "build:cloudflare": "vite build && node scripts/clean-build-secrets.js",
+    "preview": "vite preview",
+    "db:create": "wrangler d1 create privatearchivesdizam-auth --update-config",
+    "db:migrate:local": "wrangler d1 migrations apply privatearchivesdizam-auth --local",
+    "db:migrate:remote": "wrangler d1 migrations apply privatearchivesdizam-auth --remote",
+    "deploy": "npm run deploy:cloudflare",
+    "deploy:cloudflare": "node scripts/check-deploy-config.js && npm run build:cloudflare && wrangler deploy"
   },
   "dependencies": {
     "react": "^19.3.1",
@@ -14,9 +21,11 @@
     "react-router-dom": "^7.18.4"
   },
   "devDependencies": {
+    "@cloudflare/vite-plugin": "^1.70.1",
     "@tailwindcss/vite": "^4.3.3",
     "@vitejs/plugin-react": "^6.1.2",
     "tailwindcss": "^4.3.3",
-    "vite": "^8.3.5"
+    "vite": "^8.3.5",
+    "wrangler": "^4.166.0"
   }
 }

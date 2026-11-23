@@ -1,0 +1,14 @@
+CREATE TABLE IF NOT EXISTS users (
+  id CHAR(36) CHARACTER SET ascii COLLATE ascii_bin NOT NULL PRIMARY KEY,
+  name VARCHAR(80) NOT NULL,
+  email VARCHAR(254) NOT NULL UNIQUE,
+  password_salt CHAR(22) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+  password_hash CHAR(43) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+  created_at VARCHAR(32) NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS login_attempts (
+  key_hash CHAR(64) CHARACTER SET ascii COLLATE ascii_bin NOT NULL PRIMARY KEY,
+  attempts INT UNSIGNED NOT NULL,
+  window_started_at BIGINT UNSIGNED NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

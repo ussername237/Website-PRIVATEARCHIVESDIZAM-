@@ -1,0 +1,3 @@
+# Copy this file to .dev.vars and replace both values with independent random secrets.
+SESSION_SECRET=replace-with-at-least-32-random-characters
+REGISTRATION_SECRET=replace-with-another-32-random-characters

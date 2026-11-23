@@ -3,12 +3,15 @@ import fetchJson from "./fetchJson.js";
 
 const TMDB_KEY = (import.meta.env.VITE_TMDB_KEY || "").trim();
 const OMDB_KEY = (import.meta.env.VITE_OMDB_KEY || "").trim();
+const OMDB_KEY_2 = (import.meta.env.VITE_OMDB_KEY_2 || "").trim();
 export const hasTmdb = Boolean(TMDB_KEY);
-export const hasOmdb = Boolean(OMDB_KEY);
+export const hasOmdb = Boolean(OMDB_KEY || OMDB_KEY_2);
 
 const BASE = "https://api.themoviedb.org/3";
 const IMG = "https://image.tmdb.org/t/p";
 const personInstagramCache = new Map();
+const COLLECTION_LIMIT = 1000;
+const COLLECTION_MAX_BYTES = 1_800_000;
 
 async function requestTmdb(path, params = {}) {
   const searchParams = new URLSearchParams({
@@ -50,11 +53,7 @@ function fetchPersonInstagram(personId) {
 
 export function loadMovies(email) {
   try {
-    const key = "mv_movies_" + email;
-    const matchingKey = Object.keys(localStorage).find(
-      (storedKey) => storedKey.toLowerCase() === key.toLowerCase()
-    );
-    const v = localStorage.getItem(matchingKey || key);
+    const v = readLocalMoviesValue(email);
     return v
       ? JSON.parse(v)
           .map(upgradeSirenHeadMovie)
@@ -65,14 +64,85 @@ export function loadMovies(email) {
   }
 }
 
-export async function saveMovies(email, list) {
+function readLocalMoviesValue(email) {
+  const key = `mv_movies_${email}`;
+  const matchingKey = Object.keys(localStorage).find(
+    (storedKey) => storedKey.toLowerCase() === key.toLowerCase()
+  );
+  return localStorage.getItem(matchingKey || key);
+}
+
+function writeLocalMoviesValue(email, serialized) {
+  const key = `mv_movies_${email}`;
+  const matchingKey = Object.keys(localStorage).find(
+    (storedKey) => storedKey.toLowerCase() === key.toLowerCase()
+  );
+  if (matchingKey && matchingKey !== key) localStorage.removeItem(matchingKey);
+  localStorage.setItem(key, serialized);
+}
+
+function collectionSnapshotKey(email) {
+  return `mv_movies_snapshot_${email}`;
+}
+
+function collectionVersionKey(email) {
+  return `mv_collection_version_${email}`;
+}
+
+export function getCachedCollectionVersion(email) {
+  if (!email) return null;
+  const storedVersion = localStorage.getItem(collectionVersionKey(email));
+  if (storedVersion === null) return null;
+  const value = Number(storedVersion);
+  return Number.isSafeInteger(value) && value >= 0 ? value : null;
+}
+
+export async function fetchCollectionVersion(email) {
   if (!email) throw new Error("Profil lokal tidak ditemukan.");
-  if (!Array.isArray(list) || list.length > 1000) {
-    throw new Error("Koleksi tidak valid (maksimal 1.000 film).");
-  }
   try {
-    localStorage.setItem("mv_movies_" + email, JSON.stringify(list));
-    localStorage.setItem(`mv_static_migrated_${email}`, "1");
+    const result = await fetchJson("/api/collection/version", {
+      credentials: "same-origin",
+      headers: { Accept: "application/json" },
+    });
+    if (
+      !result ||
+      typeof result.exists !== "boolean" ||
+      !Number.isSafeInteger(result.version) ||
+      result.version < 0
+    ) {
+      throw new Error("Respons versi koleksi tidak valid.");
+    }
+    return result;
+  } catch (error) {
+    if (error instanceof TypeError) {
+      throw new Error("Server koleksi tidak dapat dijangkau. Periksa koneksi lalu coba lagi.");
+    }
+    throw error;
+  }
+}
+
+function readCollectionSnapshot(email) {
+  const value = localStorage.getItem(collectionSnapshotKey(email));
+  if (value === null) return null;
+  try {
+    const snapshot = JSON.parse(value);
+    if (!Array.isArray(snapshot)) throw new Error("Snapshot bukan daftar film.");
+    return snapshot;
+  } catch {
+    throw new Error("Data sinkronisasi lokal rusak. Muat ulang halaman sebelum menyimpan.");
+  }
+}
+
+function writeCollectionCache(email, movies, markMigrated = true, version) {
+  const serialized = JSON.stringify(movies);
+  try {
+    writeLocalMoviesValue(email, serialized);
+    localStorage.setItem(collectionSnapshotKey(email), serialized);
+    if (Number.isSafeInteger(version) && version >= 0) {
+      localStorage.setItem(collectionVersionKey(email), String(version));
+    }
+    if (markMigrated) localStorage.setItem(`mv_static_migrated_${email}`, "1");
+    else localStorage.removeItem(`mv_static_migrated_${email}`);
   } catch (error) {
     throw new Error(
       error.name === "QuotaExceededError"
@@ -80,17 +150,227 @@ export async function saveMovies(email, list) {
         : `Koleksi gagal disimpan di browser: ${error.message}`
     );
   }
-  return list;
+}
+
+function writePendingCollection(email, movies) {
+  try {
+    writeLocalMoviesValue(email, JSON.stringify(movies));
+  } catch (error) {
+    throw new Error(
+      error.name === "QuotaExceededError"
+        ? "Penyimpanan browser penuh. Hapus sebagian film atau data situs."
+        : `Koleksi gagal disimpan di browser: ${error.message}`
+    );
+  }
+}
+
+async function getRemoteCollection() {
+  try {
+    const result = await fetchJson("/api/collection", {
+      credentials: "same-origin",
+      headers: { Accept: "application/json" },
+    });
+    if (
+      !result ||
+      !Array.isArray(result.movies) ||
+      !Number.isSafeInteger(result.version) ||
+      typeof result.exists !== "boolean"
+    ) {
+      throw new Error("Respons sinkronisasi koleksi tidak valid.");
+    }
+    return {
+      ...result,
+      movies: result.movies
+        .map(upgradeSirenHeadMovie)
+        .map(upgradePersonalRating),
+    };
+  } catch (error) {
+    if (error instanceof TypeError) {
+      throw new Error("Server koleksi tidak dapat dijangkau. Periksa koneksi lalu coba lagi.");
+    }
+    throw error;
+  }
+}
+
+async function putRemoteCollection(movies, expectedVersion) {
+  try {
+    return await fetchJson("/api/collection", {
+      method: "PUT",
+      credentials: "same-origin",
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ movies, expectedVersion }),
+    });
+  } catch (error) {
+    if (error instanceof TypeError) {
+      throw new Error("Server koleksi tidak dapat dijangkau. Periksa koneksi lalu coba lagi.");
+    }
+    throw error;
+  }
+}
+
+function validateCollection(movies) {
+  if (!Array.isArray(movies) || movies.length > COLLECTION_LIMIT) {
+    throw new Error("Koleksi tidak valid (maksimal 1.000 film).");
+  }
+  if (movies.some((movie) => !movie || typeof movie !== "object" || Array.isArray(movie))) {
+    throw new Error("Data film di dalam koleksi tidak valid.");
+  }
+  const size = new TextEncoder().encode(JSON.stringify(movies)).byteLength;
+  if (size > COLLECTION_MAX_BYTES) {
+    throw new Error("Ukuran data koleksi terlalu besar untuk disinkronkan.");
+  }
+}
+
+function collectionMovieKey(movie) {
+  const tmdbId = String(movie.tmdbId || "").trim();
+  if (tmdbId && !tmdbId.startsWith("manual-")) return `id:${tmdbId}`;
+  const title = String(movie.title || "").trim().toLowerCase().replace(/\s+/g, " ");
+  const year = String(movie.year || movie.expectedYear || "");
+  return `manual:${title}:${year}`;
+}
+
+function sameMovie(left, right) {
+  return JSON.stringify(left) === JSON.stringify(right);
+}
+
+function sameCollection(left, right) {
+  return left.length === right.length && left.every((movie, index) => sameMovie(movie, right[index]));
+}
+
+function mergeInitialCollections(remoteMovies, localMovies) {
+  const merged = [...remoteMovies];
+  for (const localMovie of localMovies) {
+    const key = collectionMovieKey(localMovie);
+    const index = merged.findIndex((movie) => collectionMovieKey(movie) === key);
+    if (index < 0) {
+      merged.push(localMovie);
+      continue;
+    }
+
+    const remoteMovie = merged[index];
+    merged[index] = {
+      ...remoteMovie,
+      ...localMovie,
+      uid: remoteMovie.uid ?? localMovie.uid,
+      poster: localMovie.poster || remoteMovie.poster || null,
+      backdrop: localMovie.backdrop || remoteMovie.backdrop || null,
+      overview: localMovie.overview || remoteMovie.overview || "",
+      genres: localMovie.genres?.length ? localMovie.genres : remoteMovie.genres || [],
+      year: localMovie.year || remoteMovie.year || "",
+      rating: localMovie.rating || remoteMovie.rating || null,
+      metadataSource: localMovie.metadataSource || remoteMovie.metadataSource || "",
+      watched: Boolean(localMovie.watched || remoteMovie.watched),
+      favorite: Boolean(localMovie.favorite || remoteMovie.favorite),
+      note: localMovie.note || remoteMovie.note || "",
+      personalRating: Number(localMovie.personalRating) || Number(remoteMovie.personalRating) || 0,
+    };
+  }
+  return merged;
+}
+
+function mergeLocalChanges(baseMovies, localMovies, remoteMovies) {
+  const baseByKey = new Map(baseMovies.map((movie) => [collectionMovieKey(movie), movie]));
+  const localByKey = new Map(localMovies.map((movie) => [collectionMovieKey(movie), movie]));
+  const deletedKeys = new Set(
+    baseMovies
+      .filter((movie) => !localByKey.has(collectionMovieKey(movie)))
+      .map(collectionMovieKey)
+  );
+  const merged = remoteMovies.filter((movie) => !deletedKeys.has(collectionMovieKey(movie)));
+  let inserted = 0;
+
+  for (const localMovie of localMovies) {
+    const key = collectionMovieKey(localMovie);
+    const baseMovie = baseByKey.get(key);
+    if (baseMovie && sameMovie(baseMovie, localMovie)) continue;
+
+    const index = merged.findIndex((movie) => collectionMovieKey(movie) === key);
+    if (index >= 0) merged[index] = localMovie;
+    else merged.splice(inserted++, 0, localMovie);
+  }
+  return merged;
+}
+
+async function commitCollection(email, baseMovies, localMovies, remote, initialSync) {
+  let current = remote;
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    const merged = initialSync
+      ? mergeInitialCollections(current.movies, localMovies)
+      : mergeLocalChanges(baseMovies, localMovies, current.movies);
+    validateCollection(merged);
+
+    if (current.exists && sameCollection(merged, current.movies)) {
+      writeCollectionCache(email, current.movies, true, current.version);
+      return current.movies;
+    }
+
+    try {
+      const saved = await putRemoteCollection(merged, current.version);
+      writeCollectionCache(email, saved.movies, true, saved.version);
+      return saved.movies;
+    } catch (error) {
+      if (error.status !== 409 || attempt === 2) throw error;
+      current = await getRemoteCollection();
+    }
+  }
+  throw new Error("Koleksi berubah terus di perangkat lain. Coba simpan lagi.");
+}
+
+export async function saveMovies(email, list) {
+  if (!email) throw new Error("Profil lokal tidak ditemukan.");
+  validateCollection(list);
+
+  const snapshot = readCollectionSnapshot(email);
+  try {
+    const remote = await getRemoteCollection();
+    const movies = await commitCollection(
+      email,
+      snapshot || [],
+      list,
+      remote,
+      snapshot === null || !remote.exists
+    );
+    return movies;
+  } catch (error) {
+    try {
+      writePendingCollection(email, list);
+    } catch (storageError) {
+      throw new Error(`${error.message} ${storageError.message}`);
+    }
+    throw error;
+  }
 }
 
 export async function fetchMovies(email) {
-  const movies = loadMovies(email);
-  if (localStorage.getItem("mv_movies_" + email) !== null) {
-    localStorage.setItem(`mv_static_migrated_${email}`, "1");
-  } else {
-    localStorage.removeItem(`mv_static_migrated_${email}`);
+  if (!email) throw new Error("Profil lokal tidak ditemukan.");
+  const snapshot = readCollectionSnapshot(email);
+  const storedMovies = readLocalMoviesValue(email);
+  const localMovies = storedMovies === null
+    ? snapshot || []
+    : loadMovies(email);
+  const remote = await getRemoteCollection();
+
+  if (remote.exists) {
+    return commitCollection(
+      email,
+      snapshot || [],
+      localMovies,
+      remote,
+      snapshot === null
+    );
   }
-  return movies;
+
+  if (localMovies.length) {
+    return commitCollection(email, [], localMovies, remote, true);
+  }
+
+  localStorage.setItem(collectionSnapshotKey(email), "[]");
+  localStorage.setItem(collectionVersionKey(email), "0");
+  localStorage.removeItem(`mv_static_migrated_${email}`);
+  return [];
 }
 
 /* ------------------------------------------------------------------------- */
@@ -98,7 +378,7 @@ export async function fetchMovies(email) {
 /* ------------------------------------------------------------------------- */
 
 // Terjemahan genre_ids TMDB -> label Indonesia
-const GENRE_MAP = {
+export const GENRE_MAP = {
   28: "Laga",
   12: "Petualangan",
   16: "Animasi",
@@ -112,7 +392,7 @@ const GENRE_MAP = {
   27: "Horor",
   10402: "Musik",
   9648: "Misteri",
-  10749: "Romansa",
+  10749: "Romance",
   878: "Sci-Fi",
   10770: "TV Movie",
   53: "Thriller",
@@ -137,8 +417,7 @@ function toItem(m) {
     overview: (m.overview || "").trim(),
     genres: (m.genre_ids || [])
       .map((id) => GENRE_MAP[id])
-      .filter(Boolean)
-      .slice(0, 2),
+      .filter(Boolean),
     metadataSource: "tmdb",
   };
 }
@@ -408,34 +687,78 @@ export const FALLBACK_MOVIES = [
 ];
 
 async function searchOmdbMovies(query, page = 1) {
-  const params = new URLSearchParams({
-    apikey: OMDB_KEY,
-    s: query,
-    type: "movie",
-    page: String(page),
-  });
-  const data = await fetchJson(`https://www.omdbapi.com/?${params}`);
-  if (data.Response === "False") {
-    if (data.Error === "Movie not found!") return { movies: [], total: 0 };
-    throw new Error(data.Error || "Pencarian OMDb gagal.");
+  const keys = [OMDB_KEY, OMDB_KEY_2].filter(Boolean);
+  let lastError = "";
+
+  for (const key of [...new Set(keys)]) {
+    const responses = await Promise.all(
+      ["movie", "series"].map(async (type) => {
+        const params = new URLSearchParams({
+          apikey: key,
+          s: query,
+          type,
+          page: String(page),
+        });
+        try {
+          return await fetchJson(`https://www.omdbapi.com/?${params}`);
+        } catch (error) {
+          return {
+            Response: "False",
+            Error: error.status === 401
+              ? "Invalid API key"
+              : error.message || "Pencarian OMDb gagal.",
+          };
+        }
+      })
+    );
+
+    const failures = responses.filter((data) => data.Response === "False");
+    const keyRejected = failures.some((data) => {
+      const message = String(data.Error || "").toLowerCase();
+      return (
+        message.includes("invalid api key") ||
+        message.includes("limit reached") ||
+        message.includes("request limit")
+      );
+    });
+
+    if (keyRejected) {
+      lastError = failures[0]?.Error || "Limit atau API key OMDb tidak dapat digunakan.";
+      continue;
+    }
+
+    const movies = [];
+    let total = 0;
+    const seen = new Set();
+
+    for (const data of responses) {
+      if (data.Response === "False") continue;
+      total += Number(data.totalResults) || 0;
+      for (const item of data.Search || []) {
+        if (!item.imdbID || seen.has(item.imdbID)) continue;
+        seen.add(item.imdbID);
+        movies.push({
+          tmdbId: `imdb-${item.imdbID}`,
+          imdbId: item.imdbID,
+          title: item.Title,
+          year: /^\d{4}/.test(item.Year || "") ? item.Year.slice(0, 4) : "",
+          releaseDate: "",
+          lang: "",
+          rating: null,
+          poster: item.Poster && item.Poster !== "N/A" ? item.Poster : null,
+          backdrop: null,
+          overview: "",
+          genres: [],
+          mediaType: item.Type === "series" ? "series" : "movie",
+          metadataSource: "omdb",
+        });
+      }
+    }
+
+    return { movies, total };
   }
-  return {
-    movies: (data.Search || []).map((movie) => ({
-      tmdbId: `imdb-${movie.imdbID}`,
-      imdbId: movie.imdbID,
-      title: movie.Title,
-      year: /^\d{4}/.test(movie.Year || "") ? movie.Year.slice(0, 4) : "",
-      releaseDate: "",
-      lang: "",
-      rating: null,
-      poster: movie.Poster && movie.Poster !== "N/A" ? movie.Poster : null,
-      backdrop: null,
-      overview: "",
-      genres: [],
-      metadataSource: "omdb",
-    })),
-    total: Number(data.totalResults) || 0,
-  };
+
+  throw new Error(lastError || "Pencarian OMDb gagal.");
 }
 
 function mergeMovieResults(tmdbMovies, omdbMovies) {
@@ -456,18 +779,48 @@ function mergeMovieResults(tmdbMovies, omdbMovies) {
   ];
 }
 
+function toTvItem(series) {
+  return {
+    tmdbId: `tv-${series.id}`,
+    title: series.name || series.original_name || "Tanpa judul",
+    year: (series.first_air_date || "").slice(0, 4),
+    releaseDate: series.first_air_date || "",
+    lang: (series.original_language || "").toUpperCase(),
+    rating:
+      typeof series.vote_average === "number" && series.vote_average > 0
+        ? Math.round(series.vote_average * 10) / 10
+        : null,
+    poster: series.poster_path ? IMG + "/w500" + series.poster_path : null,
+    backdrop: series.backdrop_path ? IMG + "/w1280" + series.backdrop_path : null,
+    overview: (series.overview || "").trim(),
+    genres: (series.genre_ids || [])
+      .map((id) => GENRE_MAP[id])
+      .filter(Boolean),
+    mediaType: "series",
+    metadataSource: "tmdb",
+  };
+}
+
 async function searchMovieSources(query, year = "", page = 1) {
   if (!hasTmdb && !hasOmdb) {
     throw new Error("Tambahkan VITE_TMDB_KEY atau VITE_OMDB_KEY ke .env.local.");
   }
 
-  const tmdbRequest = hasTmdb
+  const tmdbMovieRequest = hasTmdb
     ? requestTmdb("/search/movie", {
         language: "id-ID",
         query,
         page: String(page),
         ...(year ? { primary_release_year: year } : {}),
-      })
+      }).catch(() => ({ results: [], total_pages: 0 }))
+    : Promise.resolve({ results: [], total_pages: 0 });
+  const tmdbTvRequest = hasTmdb
+    ? requestTmdb("/search/tv", {
+        language: "id-ID",
+        query,
+        page: String(page),
+        ...(year ? { first_air_date_year: year } : {}),
+      }).catch(() => ({ results: [], total_pages: 0 }))
     : Promise.resolve({ results: [], total_pages: 0 });
   const omdbRequest = hasOmdb
     ? searchOmdbMovies(query, page).catch((error) => ({
@@ -476,16 +829,30 @@ async function searchMovieSources(query, year = "", page = 1) {
         error: error.message || "Pencarian OMDb gagal.",
       }))
     : Promise.resolve({ movies: [], total: 0 });
-  const [tmdbData, omdbResult] = await Promise.all([tmdbRequest, omdbRequest]);
-  const tmdbMovies = (tmdbData.results || []).map(toItem);
+  const [tmdbMovieData, tmdbTvData, omdbResult] = await Promise.all([
+    tmdbMovieRequest,
+    tmdbTvRequest,
+    omdbRequest,
+  ]);
+  const tmdbMovies = [
+    ...(tmdbMovieData.results || []).map(toItem),
+    ...(tmdbTvData.results || []).map(toTvItem),
+  ];
   const movies = mergeMovieResults(tmdbMovies, omdbResult.movies);
 
   return {
     movies,
+    page,
     hasMore:
-      page < (tmdbData.total_pages || 0) ||
+      page < (tmdbMovieData.total_pages || 0) ||
+      page < (tmdbTvData.total_pages || 0) ||
       (hasOmdb && page < 100 && page * 10 < omdbResult.total),
     warning: omdbResult.error || "",
+    source: hasTmdb && hasOmdb
+      ? "combined"
+      : hasOmdb
+        ? "omdb"
+        : "tmdb",
   };
 }
 
@@ -493,8 +860,51 @@ export async function searchMovies(query, page = 1) {
   return searchMovieSources(query, "", page);
 }
 
+export async function searchTmdbPage(query, page = 1, year = "") {
+  if (!hasTmdb) {
+    if (!hasOmdb) throw new Error("Isi API key TMDB atau OMDb untuk pencarian.");
+    return searchMovies(query, page);
+  }
+
+  const [movieData, tvData, omdbResult] = await Promise.all([
+    requestTmdb("/search/movie", {
+      language: "id-ID",
+      query,
+      page: String(page),
+      include_adult: "false",
+      ...(year ? { primary_release_year: year } : {}),
+    }).catch(() => ({ results: [], total_pages: 0 })),
+    requestTmdb("/search/tv", {
+      language: "id-ID",
+      query,
+      page: String(page),
+      include_adult: "false",
+      ...(year ? { first_air_date_year: year } : {}),
+    }).catch(() => ({ results: [], total_pages: 0 })),
+    hasOmdb
+      ? searchOmdbMovies(query, page).catch(() => ({ movies: [], total: 0 }))
+      : Promise.resolve({ movies: [], total: 0 }),
+  ]);
+
+  const tmdbMovies = [
+    ...(movieData.results || []).map(toItem),
+    ...(tvData.results || []).map(toTvItem),
+  ];
+  const movies = mergeMovieResults(tmdbMovies, omdbResult.movies);
+
+  return {
+    movies,
+    page,
+    hasMore:
+      page < (movieData.total_pages || 0) ||
+      page < (tvData.total_pages || 0) ||
+      (hasOmdb && page < 100 && page * 10 < omdbResult.total),
+    source: hasOmdb ? "combined" : "tmdb",
+  };
+}
+
 export async function searchTmdbMovies(query, year = "", page = 1) {
-  const result = await searchMovieSources(query, year, page);
+  const result = await searchTmdbPage(query, page, year);
   return result.movies;
 }
 
@@ -930,9 +1340,8 @@ export async function hydrateMoviePosters(email) {
       if (source.poster_path) updated += 1;
       else unresolved += 1;
     });
-
-    await saveMovies(email, collection);
   }
 
+  if (pending.length) writePendingCollection(email, collection);
   return { updated, unresolved, failed };
 }

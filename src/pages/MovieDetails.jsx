@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { Link, useLocation, useParams } from "react-router-dom";
+import ArrowIcon from "../components/ArrowIcon.jsx";
 import AppNavigation from "../components/AppNavigation.jsx";
+import UndoToast from "../components/UndoToast.jsx";
 import { getSession } from "../lib/auth.js";
 import {
   fetchMovieDetails,
@@ -21,7 +23,7 @@ const LANGUAGES = [
 export default function MovieDetails() {
   const { movieId } = useParams();
   const location = useLocation();
-  const session = getSession();
+  const email = getSession()?.email || "";
   const routeMovie = location.state?.movie;
   const movie = routeMovie || {
     tmdbId: /^\d+$/.test(movieId) ? Number(movieId) : movieId,
@@ -35,8 +37,9 @@ export default function MovieDetails() {
   const [loading, setLoading] = useState(true);
   const [collectionError, setCollectionError] = useState("");
   const [collectionLoaded, setCollectionLoaded] = useState(false);
+  const [undoMovie, setUndoMovie] = useState(null);
   const [favorite, setFavorite] = useState(() =>
-    loadMovies(session.email).some(
+    loadMovies(email).some(
       (saved) =>
         ((routeMovie?.uid && saved.uid === routeMovie.uid) ||
           String(saved.tmdbId) === String(movie.tmdbId)) &&
@@ -44,7 +47,7 @@ export default function MovieDetails() {
     )
   );
   const [saved, setSaved] = useState(() =>
-    loadMovies(session.email).some(
+    loadMovies(email).some(
       (item) =>
         (routeMovie?.uid && item.uid === routeMovie.uid) ||
         String(item.tmdbId) === String(movie.tmdbId)
@@ -53,7 +56,7 @@ export default function MovieDetails() {
 
   useEffect(() => {
     let active = true;
-    fetchMovies(session.email)
+    fetchMovies(email)
       .then((items) => {
         if (!active) return;
         const savedMovie = items.find(
@@ -75,7 +78,7 @@ export default function MovieDetails() {
     return () => {
       active = false;
     };
-  }, [session.email, movieId]);
+  }, [movieId]);
 
   useEffect(() => {
     let active = true;
@@ -113,7 +116,7 @@ export default function MovieDetails() {
 
   async function updateSavedMovie(isFavorite) {
     if (!collectionLoaded) return;
-    const current = loadMovies(session.email);
+    const current = loadMovies(email);
     const index = current.findIndex(
       (item) =>
         (routeMovie?.uid && item.uid === routeMovie.uid) ||
@@ -121,11 +124,18 @@ export default function MovieDetails() {
     );
 
     if (index >= 0) {
-      current[index] = { ...current[index], favorite: isFavorite };
+      current[index] = {
+        ...current[index],
+        favorite: isFavorite,
+        genres: current[index].genres?.length
+          ? current[index].genres
+          : details?.genres || [],
+      };
     } else if (isFavorite) {
       current.unshift({
         ...movie,
         title: details?.title || movie.title,
+        genres: movie.genres?.length ? movie.genres : details?.genres || [],
         uid: Date.now(),
         watched: false,
         rating: 0,
@@ -133,7 +143,7 @@ export default function MovieDetails() {
       });
     }
     try {
-      await saveMovies(session.email, current);
+      await saveMovies(email, current);
       setFavorite(isFavorite);
       setSaved(true);
       setCollectionLoaded(true);
@@ -143,8 +153,47 @@ export default function MovieDetails() {
     }
   }
 
+  async function removeMovieFromCollection() {
+    if (!collectionLoaded) return;
+    const current = loadMovies(email);
+    const targetMovie = current.find(
+      (item) =>
+        (routeMovie?.uid && item.uid === routeMovie.uid) ||
+        String(item.tmdbId) === String(movie.tmdbId)
+    );
+    if (!targetMovie) return;
+    const filtered = current.filter((item) => item.uid !== targetMovie.uid);
+    try {
+      await saveMovies(email, filtered);
+      setUndoMovie({ movie: targetMovie, key: Date.now() });
+      setSaved(false);
+      setFavorite(false);
+      setError("");
+    } catch (saveError) {
+      setError(saveError.message || "Gagal menghapus film dari koleksi.");
+    }
+  }
+
+  async function undoRemoveMovie() {
+    if (!undoMovie || !collectionLoaded) return;
+    const current = loadMovies(email);
+    const restored = [
+      undoMovie.movie,
+      ...current.filter((item) => item.uid !== undoMovie.movie.uid),
+    ];
+    try {
+      await saveMovies(email, restored);
+      setSaved(true);
+      setFavorite(Boolean(undoMovie.movie.favorite));
+      setUndoMovie(null);
+      setError("");
+    } catch (saveError) {
+      setError(saveError.message || "Gagal membatalkan penghapusan.");
+    }
+  }
+
   return (
-    <div className="min-h-screen bg-[#090a0d] text-slate-100">
+    <div className="archive-secondary-page min-h-screen bg-[#0D0B0E] text-[#D8C9A7]">
       <AppNavigation />
       <main className="mx-auto max-w-5xl px-4 py-8 sm:px-6 sm:py-10">
         <Link
@@ -153,7 +202,7 @@ export default function MovieDetails() {
           title="Kembali ke Cari"
           className="detail-back-link"
         >
-          <span className="detail-back-link__arrow" aria-hidden="true">←</span>
+          <ArrowIcon direction="left" className="detail-back-link__arrow" />
           <span>Kembali</span>
         </Link>
 
@@ -200,7 +249,7 @@ export default function MovieDetails() {
                       ? "★ Favorit"
                       : "☆ Tambah ke favorit"}
                 </button>
-                {!saved && (
+                {!saved ? (
                   <button
                     type="button"
                     disabled={!collectionLoaded}
@@ -210,6 +259,15 @@ export default function MovieDetails() {
                     className="rounded-full bg-white px-4 py-2 text-xs font-medium text-slate-950 disabled:cursor-wait disabled:opacity-50"
                   >
                     Simpan ke koleksi
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    disabled={!collectionLoaded}
+                    onClick={removeMovieFromCollection}
+                    className="rounded-full border border-red-300/30 bg-red-400/10 px-4 py-2 text-xs font-semibold text-red-200 transition hover:bg-red-400/20 disabled:cursor-wait disabled:opacity-50"
+                  >
+                    Hapus dari koleksi
                   </button>
                 )}
               </div>
@@ -269,7 +327,7 @@ export default function MovieDetails() {
                   rel="noreferrer"
                   className="text-xs text-slate-500 underline underline-offset-4 hover:text-white"
                 >
-                  Sumber TMDB ↗
+                  Sumber TMDB <ArrowIcon direction="up-right" />
                 </a>
               </div>
               {details.cast.length ? (
@@ -313,7 +371,11 @@ export default function MovieDetails() {
                         )}
                       </div>
                       <span className="shrink-0 text-right text-[10px] text-slate-500 transition-colors group-hover:text-pink-200 sm:text-xs">
-                        {person.instagram ? "Instagram ↗" : "Profil TMDB ↗"}
+                        {person.instagram ? (
+                          <>Instagram <ArrowIcon direction="up-right" /></>
+                        ) : (
+                          <>Profil TMDB <ArrowIcon direction="up-right" /></>
+                        )}
                       </span>
                     </a>
                   ))}
@@ -340,7 +402,8 @@ export default function MovieDetails() {
                     >
                       <p className="text-sm font-medium text-slate-200">{video.name}</p>
                       <p className="mt-1 text-xs text-slate-500">
-                        {video.official ? "Resmi" : "Video"} · {video.type} · Buka YouTube ↗
+                        {video.official ? "Resmi" : "Video"} · {video.type} · Buka YouTube{" "}
+                        <ArrowIcon direction="up-right" />
                       </p>
                     </a>
                   ))}
@@ -354,6 +417,16 @@ export default function MovieDetails() {
           </>
         )}
       </main>
+
+      {undoMovie && (
+        <UndoToast
+          key={undoMovie.key || undoMovie.movie.uid}
+          message={`“${undoMovie.movie.title}” dihapus dari koleksi.`}
+          onUndo={undoRemoveMovie}
+          onDismiss={() => setUndoMovie(null)}
+          duration={4000}
+        />
+      )}
     </div>
   );
 }
