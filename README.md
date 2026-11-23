@@ -1,316 +1,361 @@
-# PrivateArchivesDizam — Website Penyimpanan Film Pribadi
+# 🎬 PrivateArchivesDizam
+### Website Penyimpanan Film Pribadi
 
-![Status](https://img.shields.io/badge/status-aktif-brightgreen?style=flat-square)
-![Lisensi](https://img.shields.io/badge/lisensi-MIT-blue?style=flat-square)
-![React](https://img.shields.io/badge/React-19-61dafb?logo=react&logoColor=black&style=flat-square)
-![Vite](https://img.shields.io/badge/Vite-8-646cff?logo=vite&logoColor=white&style=flat-square)
-![TailwindCSS](https://img.shields.io/badge/Tailwind_CSS-v4-38bdf8?logo=tailwindcss&logoColor=white&style=flat-square)
-![Cloudflare Workers](https://img.shields.io/badge/Cloudflare-Workers_%26_D1-f38020?logo=cloudflare&logoColor=white&style=flat-square)
+<p align="center">
+  <img src="https://img.shields.io/badge/status-aktif-brightgreen?style=flat-square" alt="Status Aktif">
+  <img src="https://img.shields.io/badge/lisensi-MIT-blue?style=flat-square" alt="Lisensi MIT">
+  <img src="https://img.shields.io/badge/React-19-61dafb?logo=react&logoColor=black&style=flat-square" alt="React 19">
+  <img src="https://img.shields.io/badge/Vite-8-646cff?logo=vite&logoColor=white&style=flat-square" alt="Vite 8">
+  <img src="https://img.shields.io/badge/Tailwind_CSS-v4-38bdf8?logo=tailwindcss&logoColor=white&style=flat-square" alt="Tailwind CSS">
+  <img src="https://img.shields.io/badge/Cloudflare-Workers_&_D1-f38020?logo=cloudflare&logoColor=white&style=flat-square" alt="Cloudflare Workers and D1">
+</p>
 
-Website aplikasi penyimpanan film pribadi (*personal movie vault & archive*) yang dirancang eksklusif untuk mendokumentasikan, mengelola, menilai, dan mengelompokkan koleksi film, daftar tontonan (*watchlist*), serta film favorit kamu.
+<p align="center">
+  Aplikasi web pribadi untuk mengarsipkan, mengelola, menilai, dan mengelompokkan koleksi film.
+</p>
 
-*Curated by Dizam — LAZIR LAZIAF DIZAM.*
+<p align="center">
+  <strong>Curated by Dizam — LAZIR LAZIAF DIZAM.</strong>
+</p>
 
 ---
 
-## Daftar Isi
+## 📑 Daftar Isi
 
-- [Tentang Proyek](#tentang-proyek)
-- [Fitur Utama](#fitur-utama)
-- [Teknologi yang Digunakan](#teknologi-yang-digunakan)
-- [Struktur Folder](#struktur-folder)
-- [Menjalankan Secara Lokal](#menjalankan-secara-lokal)
+- [Tentang Proyek](#-tentang-proyek)
+- [Fitur Utama](#-fitur-utama)
+- [Teknologi yang Digunakan](#-teknologi-yang-digunakan)
+- [Struktur Folder](#-struktur-folder)
+- [Menjalankan Secara Lokal](#-menjalankan-secara-lokal)
   - [Prasyarat](#prasyarat)
-  - [Langkah-langkah Instalasi](#langkah-langkah-instalasi)
+  - [Instalasi](#langkah-langkah-instalasi)
   - [Perintah yang Tersedia](#perintah-yang-tersedia)
-- [Konfigurasi Lingkungan (Environment Variables)](#konfigurasi-lingkungan-environment-variables)
-  - [Variabel Frontend (`.env.local`)](#variabel-frontend-envlocal)
-  - [Secret Worker Lokal (`.dev.vars`)](#secret-worker-lokal-devvars)
+- [Konfigurasi Environment](#-konfigurasi-environment)
+  - [Variabel Frontend](#variabel-frontend-envlocal)
+  - [Secret Worker Lokal](#secret-worker-lokal-devvars)
   - [Secret Cloudflare Production](#secret-cloudflare-production)
-- [Panduan Deploy](#panduan-deploy)
-  - [Deploy ke Cloudflare Workers & D1](#deploy-ke-cloudflare-workers--d1)
-  - [Alternatif: Deploy ke Web Hosting cPanel](#alternatif-deploy-ke-web-hosting-cpanel)
-- [Kredit & Sumber Daya](#kredit--sumber-daya)
-- [Lisensi](#lisensi)
-- [Kontak](#kontak)
+- [Panduan Deploy](#-panduan-deploy)
+  - [Cloudflare Workers dan D1](#deploy-ke-cloudflare-workers--d1)
+  - [Hosting cPanel](#alternatif-deploy-ke-web-hosting-cpanel)
+- [Kredit dan Sumber Daya](#-kredit-dan-sumber-daya)
+- [Lisensi](#-lisensi)
+- [Kontak](#-kontak)
 
 ---
 
-## Tentang Proyek
+## 📌 Tentang Proyek
 
-**PrivateArchivesDizam** adalah aplikasi web modern tempat kamu dapat menyimpan arsip film pribadi tanpa bergantung pada platform sosial pihak ketiga. Dilengkapi integrasi database film internasional (The Movie Database / TMDB dan OMDb), website ini secara otomatis menyajikan metadata film lengkap seperti poster berkualitas tinggi, tahun rilis, sinopsis resmi multi-bahasa, daftar pemeran (*cast*), dan cuplikan trailer YouTube resmi.
+**PrivateArchivesDizam** adalah aplikasi web modern untuk menyimpan arsip film pribadi tanpa bergantung pada platform sosial pihak ketiga.
 
-Aplikasi ini menggunakan arsitektur **Hybrid Storage**: data disimpan secara lokal (*offline-first* di browser via LocalStorage) dan disinkronkan secara aman ke server Cloudflare D1 Database sehingga koleksi film kamu tetap aman dan dapat diakses dari perangkat mana pun.
+Aplikasi ini terintegrasi dengan database film internasional **The Movie Database (TMDB)** dan **OMDb**. Integrasi tersebut membantu menampilkan metadata film, seperti poster, tahun rilis, sinopsis multi-bahasa, daftar pemeran (*cast*), dan cuplikan trailer resmi dari YouTube.
 
----
+Aplikasi menggunakan arsitektur **Hybrid Storage**. Data dapat disimpan secara lokal di browser melalui LocalStorage (*offline-first*) dan disinkronkan ke Cloudflare D1 Database. Dengan pendekatan ini, koleksi film dapat dikelola secara lebih fleksibel.
 
-## Fitur Utama
+## ✨ Fitur Utama
 
-- **🔐 Autentikasi Eksklusif & Aman:**
-  - Registrasi terkunci dengan kode rahasia (`REGISTRATION_SECRET`) agar website tetap privat dan hanya dapat didaftarkan oleh pemilik atau orang yang diizinkan.
-  - Sesi login aman berbasis Cookie `HttpOnly` dengan enkripsi HMAC SHA-256 dan perlindungan terhadap *brute-force login*.
-- **🎬 Dashboard Koleksi Interaktif:**
-  - **Spotlight 3D Carousel:** Banner interaktif dengan kartu film 3D yang bisa digeser (*drag & snap*) dan tombol putar acak (*dice roll*) untuk rekomendasi tontonan.
-  - **Statistik Tontonan Lengkap:** Penghitung total film, sudah ditonton (*watched*), belum ditonton (*watchlist*), favorit, serta persentase progres tontonan.
-  - **Filter & Sorting Fleksibel:** Filter film berdasarkan status tontonan, favorit, genre, atau urutkan berdasarkan judul (A-Z/Z-A) dan tahun rilis.
-  - **Pencarian Realtime:** Pencarian instan berdasarkan judul film, tahun, genre, atau catatan pribadi.
-- **↩️ Fitur Undo Notifikasi 4 Detik (Anti Salah Hapus):**
-  - Ketika kamu menghapus film dari koleksi atau dari daftar favorit, muncul notifikasi mengambang dengan hitungan mundur **4 detik** dinamis dan *progress bar* animasi.
-  - Cukup klik tombol **"Urungkan"** untuk mengembalikan film yang terhapus ke posisi urutan asalnya secara instan.
-- **⭐ Manajemen Favorit & Watchlist:**
-  - Tandai film favorit dengan satu klik bintang.
-  - Berikan rating pribadi (*personal rating*) dengan slider halus dari skor 1 hingga 10.
-  - Tambahkan catatan pribadi (*personal notes*) untuk menulis kesan atau pengingat tentang film tersebut.
-- **🔍 Eksplorasi & Tambah Film Online (`/explore`):**
-  - Jelajahi film-film terbaru dan trending.
-  - Pencarian online langsung via TMDB API & OMDb API dengan paginasi (*load more*).
-  - Tambahkan film langsung ke koleksi hanya dengan satu klik.
-- **📑 Detail Lengkap Film (`/movie/:id`):**
-  - Sinopsis resmi dengan pilihan bahasa (Indonesia, Inggris, Spanyol).
-  - Profil pemeran (*cast*) lengkap dengan foto karakter dan tautan profil/Instagram.
-  - Cuplikan video trailer resmi langsung dari YouTube.
-  - Durasi penayangan (*runtime*) dan tanggal rilis resmi.
-- **📂 Pengelompokan Otomatis per Genre (`/genres` & `/favorites`):**
-  - Halaman khusus yang mengelompokkan koleksi film berdasarkan genre (Action, Drama, Sci-Fi, Horror, Animation, dsb.) dengan memori posisi scroll.
-- **📱 Desain Modern & Responsif:**
-  - Tampilan bertema gelap (*dark mode*) mewah dengan palet *Deep Navy*, *Panel Blue*, *Coral Wine*, dan *Warm Sand*.
-  - Dilengkapi *Bottom Navigation Bar* yang nyaman dan ergonomis untuk penggunaan di ponsel pintar.
+### 🔐 Autentikasi Eksklusif dan Keamanan
+- Registrasi menggunakan kode rahasia `REGISTRATION_SECRET` agar pendaftaran tetap terbatas.
+- Sesi login menggunakan cookie `HttpOnly`.
+- Menggunakan HMAC SHA-256 dan perlindungan terhadap percobaan *brute-force login*.
 
----
+### 🎬 Dashboard Koleksi Interaktif
+- **Spotlight 3D Carousel:** kartu film 3D yang dapat digeser dengan mekanisme *drag & snap*.
+- **Rekomendasi Acak:** tombol *dice roll* untuk memilih rekomendasi tontonan.
+- **Statistik Tontonan:** menampilkan total film, film yang sudah ditonton, watchlist, favorit, dan persentase progres.
+- **Filter dan Sorting:** menyaring film berdasarkan status tontonan, favorit, dan genre; serta mengurutkan berdasarkan judul atau tahun rilis.
+- **Pencarian Realtime:** mencari berdasarkan judul, tahun, genre, atau catatan pribadi.
 
-## Teknologi yang Digunakan
+### ↩️ Undo Notifikasi 4 Detik
+- Notifikasi muncul ketika film dihapus dari koleksi atau daftar favorit.
+- Dilengkapi hitung mundur empat detik dan *progress bar* animasi.
+- Tombol **Urungkan** dapat digunakan untuk mengembalikan film ke posisi urutan sebelumnya.
+
+### ⭐ Manajemen Favorit dan Watchlist
+- Menandai film favorit dengan satu klik.
+- Memberikan rating pribadi menggunakan skala 1–10.
+- Menambahkan catatan pribadi untuk menyimpan kesan atau pengingat.
+
+### 🔍 Eksplorasi dan Penambahan Film Online (`/explore`)
+- Menjelajahi film terbaru dan trending.
+- Mencari film melalui TMDB API dan OMDb API.
+- Menampilkan hasil dengan paginasi atau fitur *load more*.
+- Menambahkan film ke koleksi dengan satu klik.
+
+### 📑 Detail Film (`/movie/:id`)
+- Menampilkan sinopsis dengan pilihan bahasa Indonesia, Inggris, dan Spanyol.
+- Menampilkan profil pemeran, foto, serta tautan profil atau Instagram jika tersedia.
+- Menampilkan trailer resmi dari YouTube.
+- Menampilkan durasi film (*runtime*) dan tanggal rilis.
+
+### 📂 Pengelompokan Genre (`/genres` dan `/favorites`)
+- Mengelompokkan koleksi berdasarkan genre, seperti Action, Drama, Sci-Fi, Horror, dan Animation.
+- Menyediakan halaman khusus untuk koleksi berdasarkan genre.
+- Mempertahankan posisi scroll saat berpindah halaman sesuai implementasi aplikasi.
+
+### 📱 Desain Modern dan Responsif
+- Menggunakan tampilan gelap (*dark mode*).
+- Palet warna: **Deep Navy**, **Panel Blue**, **Coral Wine**, dan **Warm Sand**.
+- Dilengkapi *Bottom Navigation Bar* untuk pengalaman penggunaan di perangkat seluler.
+
+## 🛠️ Teknologi yang Digunakan
 
 ### Frontend
-- **Framework:** [React 19](https://react.dev/) + [React DOM 19](https://react.dev/)
-- **Build Tool:** [Vite 8](https://vitejs.dev/)
-- **Routing:** [React Router DOM v7](https://reactrouter.com/)
-- **Styling:** [Tailwind CSS v4](https://tailwindcss.com/) dengan `@tailwindcss/vite`
-- **Tipografi:** Google Fonts *Plus Jakarta Sans* & sistem font modern
 
-### Backend & Database (Cloudflare Serverless)
-- **Runtime API:** [Cloudflare Workers](https://workers.cloudflare.com/)
-- **Database:** [Cloudflare D1](https://developers.cloudflare.com/d1/) (Serverless SQL Database)
-- **Deployment Tool:** [Wrangler CLI v4](https://developers.cloudflare.com/workers/wrangler/)
+| Teknologi | Keterangan |
+|---|---|
+| [React 19](https://react.dev/) dan React DOM | Library antarmuka pengguna |
+| [Vite 8](https://vite.dev/) | Build tool dan development server |
+| [React Router DOM v7](https://reactrouter.com/) | Routing aplikasi |
+| [Tailwind CSS v4](https://tailwindcss.com/) | Styling dengan `@tailwindcss/vite` |
+| [Plus Jakarta Sans](https://fonts.google.com/specimen/Plus+Jakarta+Sans) | Tipografi |
+
+### Backend dan Database
+
+| Teknologi | Keterangan |
+|---|---|
+| [Cloudflare Workers](https://workers.cloudflare.com/) | Runtime API dan backend serverless |
+| [Cloudflare D1](https://developers.cloudflare.com/d1/) | Database SQL serverless |
+| [Wrangler CLI](https://developers.cloudflare.com/workers/wrangler/) | Pengelolaan dan deployment Cloudflare |
 
 ### Sumber Data Eksternal
-- **[TMDB API](https://www.themoviedb.org/settings/api)** — Poster, metadata film, sinopsis multi-bahasa, pemeran, dan trailer.
-- **[OMDb API](https://www.omdbapi.com/)** — Data alternatif dan pencarian film cadangan.
 
----
+| Layanan | Kegunaan |
+|---|---|
+| [TMDB API](https://www.themoviedb.org/settings/api) | Poster, metadata, sinopsis, pemeran, dan trailer film |
+| [OMDb API](https://www.omdbapi.com/) | Data alternatif dan pencarian film cadangan |
 
-## Struktur Folder
+## 📂 Struktur Folder
 
 ```text
 movie-vault/
-├── migrations/               # Skrip migrasi database SQL (D1 Database)
+├── migrations/                  # Migrasi database D1
 │   ├── 0001_initial.sql
 │   └── 0002_user_collections.sql
-├── public/                   # Aset publik statis
+├── public/                      # Aset publik
 │   ├── favicon.ico
 │   ├── favicon.svg
 │   ├── logo-512x512.png
 │   ├── logo-social.png
 │   ├── site.webmanifest
-│   └── _headers              # Pengaturan security headers & caching Cloudflare
-├── scripts/                  # Skrip utilitas deployment & pembersihan rahasia
+│   └── _headers                 # Security headers dan caching
+├── scripts/                     # Skrip utilitas deployment
 │   ├── check-deploy-config.js
 │   └── clean-build-secrets.js
-├── src/                      # Kode sumber aplikasi React
-│   ├── components/           # Komponen UI reusable
-│   │   ├── AppNavigation.jsx # Navigasi atas dan bawah (mobile bottom nav)
-│   │   ├── ArrowIcon.jsx     # Komponen ikon panah SVG
-│   │   ├── MovieCarousel.jsx # Komponen carousel spotlight film
-│   │   └── UndoToast.jsx     # Notifikasi floating Undo 4 detik
-│   ├── lib/                  # Logika aplikasi, API, & autentikasi
-│   │   ├── auth.js           # Fungsi autentikasi & sesi pengguna
-│   │   ├── fetchJson.js      # Wrapper HTTP fetch dengan penanganan error
-│   │   ├── genres.js         # Pengelompokan dan pemetaan slug genre
-│   │   └── movies.js         # Manajemen koleksi & integrasi TMDB/OMDb
-│   ├── pages/                # Halaman aplikasi
-│   │   ├── Dashboard.jsx     # Dashboard koleksi film & manajemen tontonan
-│   │   ├── Explore.jsx       # Halaman pencarian & jelajah film online
-│   │   ├── Favorites.jsx     # Halaman film yang difavoritkan per genre
-│   │   ├── GenreCollection.jsx # Halaman daftar genre & koleksi per genre
-│   │   ├── Landing.jsx       # Halaman beranda minimalis
-│   │   ├── Login.jsx         # Halaman login & pendaftaran akun
-│   │   └── MovieDetails.jsx  # Halaman detail sinopsis, cast, & trailer film
-│   ├── App.jsx               # Router utama & proteksi rute (RequireAuth)
-│   ├── index.css             # Desain global Tailwind v4 & keyframes animasi
-│   ├── main.jsx              # Titik masuk utama React DOM
-│   └── site.css              # Gaya tambahan landing page & tema Dizam
-├── worker/                   # Kode Worker API Cloudflare (Backend Serverless)
-│   └── index.js              # Endpoint login, sesi, registrasi, & koleksi
-├── .dev.vars.example         # Contoh secret lokal untuk Cloudflare Worker
-├── .env.example              # Contoh API key TMDB dan OMDb
-├── AUTH_SETUP.md             # Panduan rinci pengaturan autentikasi Cloudflare
-├── package.json              # Daftar dependensi & script proyek
-├── vite.config.js            # Konfigurasi bundler Vite + Cloudflare Plugin
-└── wrangler.jsonc            # Konfigurasi deployment Cloudflare Workers & D1
+├── src/
+│   ├── components/              # Komponen UI
+│   │   ├── AppNavigation.jsx
+│   │   ├── ArrowIcon.jsx
+│   │   ├── MovieCarousel.jsx
+│   │   └── UndoToast.jsx
+│   ├── lib/                     # Logika aplikasi dan API
+│   │   ├── auth.js
+│   │   ├── fetchJson.js
+│   │   ├── genres.js
+│   │   └── movies.js
+│   ├── pages/                   # Halaman aplikasi
+│   │   ├── Dashboard.jsx
+│   │   ├── Explore.jsx
+│   │   ├── Favorites.jsx
+│   │   ├── GenreCollection.jsx
+│   │   ├── Landing.jsx
+│   │   ├── Login.jsx
+│   │   └── MovieDetails.jsx
+│   ├── App.jsx                  # Router dan proteksi rute
+│   ├── index.css                # Style global dan animasi
+│   ├── main.jsx                 # Entry point React
+│   └── site.css                 # Style tambahan
+├── worker/
+│   └── index.js                 # Endpoint Worker API
+├── .dev.vars.example            # Contoh secret Worker lokal
+├── .env.example                 # Contoh konfigurasi API key
+├── AUTH_SETUP.md                # Panduan autentikasi
+├── package.json                 # Dependensi dan scripts
+├── vite.config.js               # Konfigurasi Vite
+└── wrangler.jsonc               # Konfigurasi Cloudflare
 ```
 
----
-
-## Menjalankan Secara Lokal
+## 🚀 Menjalankan Secara Lokal
 
 ### Prasyarat
 
-Pastikan perangkat kamu sudah terpasang:
-- **[Node.js](https://nodejs.org)** (versi 18 LTS atau 20 LTS atau lebih baru)
-- **npm** (bawaan dari instalasi Node.js)
-- Akun gratis di **[Cloudflare](https://dash.cloudflare.com/)** (opsional untuk D1 lokal via Wrangler)
-- API Key gratis dari **[TMDB](https://www.themoviedb.org/settings/api)** (opsional untuk data poster dan film)
+Pastikan perangkat sudah memiliki:
+
+- [Node.js](https://nodejs.org/) versi 18 LTS, 20 LTS, atau versi lebih baru.
+- npm, yang disertakan bersama instalasi Node.js.
+- Akun [Cloudflare](https://dash.cloudflare.com/) jika ingin menggunakan D1 lokal melalui Wrangler.
+- API key [TMDB](https://www.themoviedb.org/settings/api) jika ingin mengambil data film dan poster secara online.
 
 ### Langkah-langkah Instalasi
 
-1. **Clone repositori:**
+1. **Clone repository**
+
    ```bash
-   git clone https://github.com/username/movie-vault.git
-   cd movie-vault
+   git clone https://github.com/ussername237/Website-PRIVATEARCHIVESDIZAM-.git
+   cd Website-PRIVATEARCHIVESDIZAM-
    ```
 
-2. **Pasang dependensi:**
+2. **Install dependencies**
+
    ```bash
    npm install
    ```
 
-3. **Buat file konfigurasi rahasia lokal:**
+3. **Buat konfigurasi secret lokal**
+
    Salin `.dev.vars.example` menjadi `.dev.vars`:
+
    ```bash
    cp .dev.vars.example .dev.vars
    ```
-   Isi nilai rahasia acak (minimal 32 karakter) untuk `SESSION_SECRET` dan `REGISTRATION_SECRET`.
 
-4. **Konfigurasi API Key Film (Opsional):**
+   Isi `SESSION_SECRET` dan `REGISTRATION_SECRET` dengan nilai acak yang kuat (minimal 32 karakter).
+
+4. **Konfigurasi API key film (opsional)**
+
    Salin `.env.example` menjadi `.env.local`:
+
    ```bash
    cp .env.example .env.local
    ```
-   Masukkan API key TMDB kamu di baris `VITE_TMDB_KEY`.
 
-5. **Jalankan server pengembangan (Development):**
+   Isi `VITE_TMDB_KEY` dengan API key TMDB. Jika digunakan, isi juga variabel OMDb sesuai kebutuhan.
+
+5. **Jalankan development server**
+
    ```bash
    npm run dev
    ```
-   Buka URL lokal yang muncul di terminal (biasanya `http://localhost:5173`) pada browser kamu.
 
----
+   Buka alamat lokal yang ditampilkan di terminal. Umumnya alamatnya adalah `http://localhost:5173`.
 
 ### Perintah yang Tersedia
 
-| Perintah | Deskripsi |
-| :--- | :--- |
-| `npm run dev` | Menjalankan Vite dev server beserta Worker runtime lokal |
+| Perintah | Fungsi |
+|---|---|
+| `npm run dev` | Menjalankan Vite development server dan Worker runtime lokal |
 | `npm run build` | Melakukan build frontend dan Worker untuk Cloudflare |
-| `npm run preview` | Meninjau hasil build lokal di browser sebelum deploy |
-| `npm run db:create` | Membuat D1 database baru di akun Cloudflare |
-| `npm run db:migrate:local` | Menerapkan migrasi database ke SQLite D1 lokal |
-| `npm run db:migrate:remote`| Menerapkan migrasi database ke Cloudflare D1 production |
-| `npm run deploy` | Menjalankan pengecekan konfigurasi, build, dan deploy ke Cloudflare |
-| `npm run build:cpanel` | Membuat paket build khusus untuk hosting cPanel (PHP + SQLite) |
+| `npm run preview` | Meninjau hasil build secara lokal |
+| `npm run db:create` | Membuat database D1 di akun Cloudflare |
+| `npm run db:migrate:local` | Menjalankan migrasi pada database D1 lokal |
+| `npm run db:migrate:remote` | Menjalankan migrasi pada database D1 production |
+| `npm run deploy` | Memeriksa konfigurasi, melakukan build, dan deploy ke Cloudflare |
+| `npm run build:cpanel` | Membuat paket build untuk hosting cPanel (PHP dan SQLite) |
 
----
-
-## Konfigurasi Lingkungan (Environment Variables)
+## ⚙️ Konfigurasi Environment
 
 ### Variabel Frontend (`.env.local`)
 
-Variabel yang diawali `VITE_` akan disertakan ke dalam bundel frontend:
+Variabel yang diawali `VITE_` akan disertakan ke dalam bundel frontend. Jangan menaruh secret server di variabel frontend.
 
-| Variabel | Deskripsi | Diperlukan? |
-| :--- | :--- | :---: |
-| `VITE_TMDB_KEY` | API Key dari The Movie Database (v3 auth) | Ya (untuk data film & poster online) |
-| `VITE_OMDB_KEY` | API Key utama dari OMDb API | Opsional (cadangan pencarian) |
-| `VITE_OMDB_KEY_2` | API Key kedua dari OMDb API (fallback kuota limit) | Opsional |
+| Variabel | Keterangan | Kebutuhan |
+|---|---|---|
+| `VITE_TMDB_KEY` | API key The Movie Database | Diperlukan untuk data film dan poster online |
+| `VITE_OMDB_KEY` | API key OMDb utama | Opsional |
+| `VITE_OMDB_KEY_2` | API key OMDb kedua sebagai cadangan kuota | Opsional |
 
 ### Secret Worker Lokal (`.dev.vars`)
 
-File ini hanya dipakai di komputer kamu saat menjalankan `npm run dev`:
+File `.dev.vars` digunakan secara lokal ketika menjalankan `npm run dev`.
 
-| Variabel | Deskripsi |
-| :--- | :--- |
-| `SESSION_SECRET` | String acak minimal 32 karakter untuk enkripsi token sesi cookie |
-| `REGISTRATION_SECRET` | Kunci otorisasi rahasia untuk pendaftaran akun baru |
+| Variabel | Keterangan |
+|---|---|
+| `SESSION_SECRET` | String acak minimal 32 karakter untuk penandatanganan token sesi cookie |
+| `REGISTRATION_SECRET` | Kode rahasia untuk mengotorisasi pendaftaran akun baru |
 
-> ⚠️ **Penting:** Jangan pernah mengunggah file `.dev.vars` atau `.env.local` ke repositori publik Git!
+> ⚠️ **Penting:** Jangan pernah mengunggah file `.dev.vars` atau `.env.local` yang berisi nilai rahasia ke repository publik. Unggah hanya file contoh seperti `.dev.vars.example` dan `.env.example`.
 
----
+### Secret Cloudflare Production
 
-## Panduan Deploy
+Tambahkan secret ke Cloudflare Worker menggunakan perintah berikut. Jalankan satu per satu dan masukkan nilai rahasia saat diminta:
+
+```bash
+npx wrangler secret put SESSION_SECRET
+npx wrangler secret put REGISTRATION_SECRET
+```
+
+Gunakan nilai acak yang kuat dan jangan membagikannya kepada siapa pun.
+
+## ☁️ Panduan Deploy
 
 ### Deploy ke Cloudflare Workers & D1
 
-Aplikasi ini dirancang untuk berjalan di atas **Cloudflare Workers** dengan database **Cloudflare D1**:
+Aplikasi ini dirancang untuk berjalan menggunakan Cloudflare Workers dan Cloudflare D1.
 
-1. **Login ke Cloudflare CLI:**
+1. **Login ke Cloudflare**
+
    ```bash
    npx wrangler login
    ```
 
-2. **Buat database Cloudflare D1:**
+2. **Buat database D1**
+
    ```bash
    npm run db:create
    ```
-   Perintah ini akan membuat database D1 `privatearchivesdizam-auth` dan mencatat ID-nya otomatis ke `wrangler.jsonc`.
 
-3. **Jalankan migrasi database di Cloudflare:**
+   Berdasarkan konfigurasi proyek, perintah ini membuat database D1 `privatearchivesdizam-auth` dan mencatat ID database ke `wrangler.jsonc`.
+
+3. **Jalankan migrasi database production**
+
    ```bash
    npm run db:migrate:remote
    ```
 
-4. **Daftarkan Secret Produksi ke Cloudflare Worker:**
-   Jalankan perintah ini satu per satu dan masukkan string acak minimal 32 karakter saat diminta:
+4. **Tambahkan secret production**
+
    ```bash
    npx wrangler secret put SESSION_SECRET
    npx wrangler secret put REGISTRATION_SECRET
    ```
 
-5. **Deploy aplikasi:**
+5. **Deploy aplikasi**
+
    ```bash
    npm run deploy
    ```
-   Wrangler akan mengompilasi kode frontend, membersihkan secret lokal, mengunggah aset ke Cloudflare, dan memberikan tautan domain publik (`*.workers.dev`).
 
-6. **Buat Akun Pertama:**
-   Buka halaman `/login`, pilih menu **Buat akun**, masukkan `REGISTRATION_SECRET` yang telah kamu buat, lalu daftarkan email dan kata sandi kamu.
+   Wrangler akan menjalankan proses build dan deployment sesuai konfigurasi proyek. Setelah selesai, terminal akan menampilkan alamat deployment.
 
----
+6. **Buat akun pertama**
+
+   Buka halaman `/login`, pilih **Buat akun**, masukkan `REGISTRATION_SECRET`, lalu daftarkan email dan kata sandi.
 
 ### Alternatif: Deploy ke Web Hosting cPanel
 
-Jika kamu ingin meng-hosting website ini di web hosting tradisional (cPanel Apache/Nginx + PHP):
+Jika ingin menggunakan hosting tradisional dengan cPanel (Apache/Nginx dan PHP):
 
-1. Jalankan build cPanel:
+1. Jalankan build khusus cPanel:
+
    ```bash
    npm run build:cpanel
    ```
-2. Salin isi folder hasil build ke direktori `public_html` di cPanel kamu.
-3. Pastikan modul PHP SQLite (`pdo_sqlite`) aktif pada server hosting.
+
+2. Salin isi folder hasil build ke direktori `public_html` melalui cPanel.
+3. Pastikan ekstensi PHP SQLite (`pdo_sqlite`) aktif pada server hosting.
+
+## 🙌 Kredit dan Sumber Daya
+
+- **Desain dan kurasi:** Dizam — *Curated by Dizam — LAZIR LAZIAF DIZAM.*
+- **Penyedia data film:** [The Movie Database (TMDB)](https://www.themoviedb.org/) dan [OMDb API](https://www.omdbapi.com/).
+- **Ikon dan tipografi:** SVG kustom dan [Plus Jakarta Sans](https://fonts.google.com/specimen/Plus+Jakarta+Sans).
+- **Infrastruktur cloud:** [Cloudflare Workers](https://workers.cloudflare.com/) dan [Cloudflare D1](https://developers.cloudflare.com/d1/).
+
+## 📄 Lisensi
+
+Proyek ini dirilis di bawah [MIT License](LICENSE).
+
+Hak cipta metadata, sinopsis, dan poster film merupakan hak milik studio, pembuat film, dan kontributor terkait, termasuk TMDB dan OMDb.
+
+## 📬 Kontak
+
+Untuk pertanyaan, saran, atau kolaborasi terkait proyek ini:
+
+- **Website:** [PrivateArchivesDizam](https://privatearchivesdizam.workers.dev)
+- **Email:** [rizalmazid1@gmail.com](mailto:rizalmazid1@gmail.com)
+- **GitHub:** [ussername237](https://github.com/ussername237)
 
 ---
 
-## Kredit & Sumber Daya
-
-- **Desain & Kurasi:** Dizam (*Curated by Dizam — LAZIR LAZIAF DIZAM*)
-- **Penyedia Data Film:** [The Movie Database (TMDB)](https://www.themoviedb.org/) & [OMDb API](https://www.omdbapi.com/)
-- **Ikon & Tipografi:** SVG kustom terintegrasi & [Plus Jakarta Sans](https://fonts.google.com/specimen/Plus+Jakarta+Sans)
-- **Infrastruktur Cloud:** [Cloudflare Workers](https://workers.cloudflare.com/) & [Cloudflare D1](https://developers.cloudflare.com/d1/)
-
----
-
-## Lisensi
-
-Proyek ini dirilis di bawah lisensi **[MIT License](LICENSE)**.
-
-Hak cipta metadata, sinopsis, dan poster film merupakan hak milik dari masing-masing studio, pembuat film, dan kontributor TMDB / OMDb.
-
----
-
-## Kontak
-
-Untuk pertanyaan, saran, atau kolaborasi seputar proyek ini:
-
-- 🌐 **Website:** [PrivateArchivesDizam](https://privatearchivesdizam.workers.dev)
-- 📧 **Email:** [kontak@dizam.my.id](mailto:kontak@dizam.my.id)
-- 🐙 **GitHub:** [@dizam](https://github.com/)
-#   W e b s i t e - P R I V A T E A R C H I V E S D I Z A M -  
- 
+<p align="center">
+  <strong>Made with ❤️ by Dizam</strong>
+</p>
