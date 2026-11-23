@@ -350,7 +350,7 @@ Hak cipta metadata, sinopsis, dan poster film merupakan hak milik studio, pembua
 
 Untuk pertanyaan, saran, atau kolaborasi terkait proyek ini:
 
-- **Website:** [PrivateArchivesDizam](https://privatearchivesdizam.workers.dev)
+- **Website:** [PrivateArchivesDizam](https://privatearchivesdizam.rizalmazid1.workers.dev/dashboard)
 - **Email:** [rizalmazid1@gmail.com](mailto:rizalmazid1@gmail.com)
 - **GitHub:** [ussername237](https://github.com/ussername237)
 
